@@ -1,0 +1,107 @@
+    These scripts and datafiles are provided as-is, and come without 
+    any warranty whatsoever. If it works for you, great, let me know!
+    If it doesn't work for you, we'd be happy to try and help you fix it. 
+    If it destroys your universe, too bad (you may still file a bug report).
+ 
+    PLEASE CITE:
+    
+    Halima Mouhib, Akiko Higuchi, Sanne Abeln, 
+    Kei Yura, K. Anton Feenstra. 
+    "Showing the impact of pathogenic mutations of the glucose
+     transporter (GLUT1) on the channel dynamics using ConsDYN"
+    F1000, submitted (2019).
+    
+    :ETIC ESAELP
+    
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    
+newest version(s) available from:
+https://github.com/ibivu/ConsDYN.git 
+ 
+Overview of specialized scripts used in the simulation setup, 
+data processing and plotting for "Showing the impact of pathogenic 
+mutations of the glucose transporter (GLUT1) on the channel dynamics 
+using ConsDYN" by Halima Mouhib, Akiko Higuchi, Sanne Abeln, Kei Yura, 
+K. Anton Feenstra. F1000, submitted (2019).
+
+Most scripts depend on a particular organisation and naming of
+the input files, which is not described here in detail.
+Generally, it on the lines of '1PDB_SIM_MUT_#....'. '1PDB' can 
+be either of 4ZW9 or 5EQI. 'SIM' can be 'AT', 'CG' or 'CON', for 
+atomistic, coarse-grained, and conserved cg dynamics, respectively.
+'MUT' can be 'WT' or a mutant like 'G91V', and '#' is the index
+number of the replicate simulations (here, 2 to 6).
+
+make_d1d2_plots
+- uses plot_d1d2.py to create plots for all selected
+  TM pairs for WTs and all mutants.
+
+calc_hist_shifts
+- uses calc_overap.py to get overlap and shifts for all
+  TM pair distances, and summarizes in table
+
+calc_overlap.py
+- calculates overlap and shift between distributions 
+  (histograms) from two xvg input files (identical bin sets
+  are assumed).
+  depends on numpy, optparse, vararg (see below)
+
+plot_d1d2.py
+- reads pairs of xvg files from 'gmx mindist', for
+  the 'in' and 'out' distances of selected TM pairs.
+  Plots countours of density using KDE.
+  Depends on scipy.stats, matplotlib, optparse, numpy, vararg (see below)
+
+vararg.py
+- small package for callback function to be used with OptionParser
+  to allow multiple arguments for one option on the commandline.
+  Used by calc_overlap.py and plot_d1d2.py
+
+make_plots
+- using the output files of run_mindist, creates
+  eps and pdf plots using xmgrace
+
+run_mindist
+4zw9_mkndx_helix_dists.in
+5eqi_mkndx_helix_dists.in
+- the run_mindist scripts uses both 'in' files to create sets 
+  of atoms corresponding to the residue ranges in the 'in' file, 
+  using 'gmx make_ndx'. Residue ranges correspond to first and 
+  last 10 residues of the TM helices. 
+  For selected pairs, 'gmx mindist' is then used to obtain the 
+  shortest distance between those, for each frame of the input 
+  trajectories. Then, makes histograms for individual trajectories,
+  as well as combining the replicates per WT and mutant.
+  All filenames are hardcoded.
+
+cgxlate.sed:
+- simple sed script to translate MARTINI bead names in a PDB
+  file from the simulation, into regular protein sidechain
+  atom names, such as CA, CB, CG, CD. This allows for easy
+  visualization in any generic protein viewer.
+  
+mkhist.py
+- creates 1d histograms from input file by simple binning
+  (depends on sys and math)
+
+filter_conserved_rubbers.awk
+- removes asll elastic network interactions from the input
+  gromacs topology (.itp) file, that do not correspond to
+  the supplied list of residue pairs
+
+get_conserved_rubbers.awk:
+- extracts 'conserved' elastic network interactions that differ
+  less than a set threshold distance between two input gromacs
+  topology (.itp) files with MARTINI moleculetype definitions
