@@ -1,0 +1,438 @@
+[ bondedtypes ]
+; bonds  angles  dihedrals  impropers
+    2       2          1          2
+
+[ FAD ]
+
+; Flavin-Adenine-Dinucleotide (FAD) topology and forcefield description
+; Anton Feenstra, 11 Jan 2002
+; Built from the ffG43a1.rtp building blocks:
+; 1) Flavin-Mono-Nucleotide (FMNO)
+; 2) Adenosine-Tri-Phosphate (ATP)
+; aromatic hydrogens (HC6 and HC9) were added to the flavin ring;
+; bonds, exclusions, angles and impropers were added for these hydrogens
+; after the construction found in building block PHE.
+; Charges on FOZ, FOP3 and AO5* were modified to adjust the total charge
+; to an intagral number (i.e. -2.00000)
+
+[ atoms ]
+;   name    type   charge   cgnr    q_tot   
+; FMN part (after G43a1 building block FMNO):
+    FC9A       C   0.2	       0 ;  0.2   	1
+    FN10      NR  -0.2	       0 ;  0   	2
+   FC10A       C   0.36	       1 ;  0.36   	3
+     FN1      NR  -0.36	       1 ;  0   	4
+     FC2       C   0.38	       2 ;  0.38   	5
+     FO2       O  -0.38	       2 ;  0   	6
+     FN3      NR  -0.28	       3 ; -0.28   	7
+     HN3       H   0.28	       3 ;  0   	8
+     FC4       C   0.38	       4 ;  0.38   	9
+     FO4       O  -0.38	       4 ;  0   	10
+    FC4A       C   0.18	       5 ;  0.18   	11
+     FN5      NR  -0.28	       5 ; -0.1   	12
+    FC5A       C   0.1	       5 ;  0   	13
+     FC6     CR1  -0.1	       6 ; -0.1   	14
+     HC6      HC   0.1	       6 ;  0   	15
+     FC7       C   0	       7 ;  0   	16
+    FCM7     CH3   0	       7 ;  0   	17
+     FC8       C   0	       8 ;  0   	18
+    FCM8     CH3   0	       8 ;  0   	19
+     FC9     CR1  -0.1	       9 ; -0.1   	20
+     HC9      HC   0.1	       9 ;  0   	21
+     FCA     CH2   0	      10 ;  0   	22
+     FCB     CH1   0.15	      11 ;  0.15   	23
+     FOB      OA  -0.548      11 ; -0.398   	24
+     HOB       H   0.398      11 ;  0   	25
+     FCG     CH1   0.15	      12 ;  0.15   	26
+     FOG      OA  -0.548      12 ; -0.398   	27
+     HOG       H   0.398      12 ;  0   	28
+     FCD     CH1   0.15	      13 ;  0.15   	29
+     FOD      OA  -0.548      13 ; -0.398   	30
+     HOD       H   0.398      13 ;  0   	31
+     FCE     CH2   0.15	      14 ;  0.15   	32
+     FOZ      OA  -0.34	      15 ; -0.19   	33
+; Pyrophosphate charges modified after ATP:
+      FP       P   0.705      15 ;  0.515   	34
+    FOP1      OM  -0.635      15 ; -0.12   	35
+    FOP2      OM  -0.635      15 ; -0.755   	36
+    FOP3      OA  -0.34	      16 ; -1.095   	37
+; AMP part (after G43a1 building block ATP):
+     AN9      NR  -0.2	      20 ; -1.295   	38
+     AC4       C   0.2	      20 ; -1.095   	39
+     AN3      NR  -0.36	      21 ; -1.455   	40
+     AC2     CR1   0.36	      21 ; -1.095   	41
+     AN1      NR  -0.36	      22 ; -1.455   	42
+     AC6       C   0.36	      22 ; -1.095   	43
+     AN6      NT  -0.83	      23 ; -1.925   	44
+    HN61       H   0.415      23 ; -1.51   	45
+    HN62       H   0.415      23 ; -1.095   	46
+     AC5       C   0	      24 ; -1.095   	47
+     AN7      NR  -0.36	      24 ; -1.455   	48
+     AC8     CR1   0.36	      24 ; -1.095   	49
+    AC1*     CH1   0.2	      25 ; -0.895   	50
+    AO4*      OA  -0.36	      25 ; -1.255   	51
+    AC4*     CH1   0.16	      25 ; -1.095   	52
+    AC2*     CH1   0.15	      26 ; -0.945   	53
+    AO2*      OA  -0.548      26 ; -1.493   	54
+    HO2*       H   0.398      26 ; -1.095   	55
+    AC3*     CH1   0.15	      27 ; -0.945   	56
+    AO3*      OA  -0.548      27 ; -1.493   	57
+    HO3*       H   0.398      27 ; -1.095   	58
+    AC5*     CH2   0	      28 ; -1.095   	59
+    AO5*      OA  -0.34	      29 ; -1.435   	60
+      AP       P   0.705      29 ; -0.73   	61
+    AOP1      OM  -0.635      29 ; -1.365   	62
+    AOP2      OM  -0.635      29 ; -2   	63
+
+[ bonds ]
+; FMN
+ FC9A  FN10    gb_16   
+ FC9A  FC5A    gb_15   
+ FC9A   FC9    gb_15   
+ FN10 FC10A    gb_16   
+ FN10   FCA    gb_22   
+FC10A   FN1    gb_11   
+FC10A  FC4A    gb_15   
+  FN1   FC2    gb_11   
+  FC2   FO2    gb_4    
+  FC2   FN3    gb_16   
+  FN3   HN3    gb_2    
+  FN3   FC4    gb_16   
+  FC4   FO4    gb_4    
+  FC4  FC4A    gb_15   
+ FC4A   FN5    gb_11   
+  FN5  FC5A    gb_11   
+ FC5A   FC6    gb_15   
+  FC6   HC6    gb_3
+  FC6   FC7    gb_15   
+  FC7  FCM7    gb_26   
+  FC7   FC8    gb_15   
+  FC8  FCM8    gb_26   
+  FC8   FC9    gb_15   
+  FC9   HC9    gb_3
+  FCA   FCB    gb_26   
+  FCB   FOB    gb_17   
+  FCB   FCG    gb_26   
+  FOB   HOB    gb_1    
+  FCG   FOG    gb_17   
+  FCG   FCD    gb_26   
+  FOG   HOG    gb_1    
+  FCD   FOD    gb_17   
+  FCD   FCE    gb_26   
+  FOD   HOD    gb_1    
+  FCE   FOZ    gb_17   
+  FOZ    FP    gb_27   
+; Pi	       
+   FP  FOP1    gb_23   
+   FP  FOP2    gb_23   
+   FP  FOP3    gb_27   
+; AMP	       
+  AN9   AC4    gb_9    
+  AN9   AC8    gb_9    
+  AN9  AC1*    gb_21   
+  AC4   AN3    gb_11   
+  AC4   AC5    gb_15   
+  AN3   AC2    gb_6    
+  AC2   AN1    gb_6    
+  AN1   AC6    gb_11   
+  AC6   AN6    gb_8    
+  AC6   AC5    gb_15   
+  AN6  HN61    gb_2    
+  AN6  HN62    gb_2    
+  AC5   AN7    gb_9    
+  AN7   AC8    gb_9    
+ AC1*  AO4*    gb_19   
+ AC1*  AC2*    gb_25   
+ AO4*  AC4*    gb_19   
+ AC4*  AC3*    gb_25   
+ AC4*  AC5*    gb_25   
+ AC2*  AO2*    gb_19   
+ AC2*  AC3*    gb_25   
+ AO2*  HO2*    gb_1    
+ AC3*  AO3*    gb_19   
+ AO3*  HO3*    gb_1    
+ AC5*  AO5*    gb_19   
+ AO5*    AP    gb_27   
+   AP  AOP1    gb_23   
+   AP  AOP2    gb_23   
+   AP  FOP3    gb_27   
+
+[ exclusions ]
+; FMN
+;  ai    aj
+ FC9A   FN1
+ FC9A  FC4A
+ FC9A   HC6
+ FC9A   FC7
+ FC9A  FCM8
+ FN10   FC2
+ FN10   FC4
+ FN10   FN5
+ FN10   FC6
+ FN10   HC9
+ FN10   FC8
+FC10A   FO2
+FC10A   FN3
+FC10A   FO4
+FC10A  FC5A
+FC10A   FC9
+  FN1   HN3
+  FN1   FC4
+  FN1   FN5
+  FN1   FCA
+  FC2   FO4
+  FC2  FC4A
+  FO2   HN3
+  FO2   FC4
+  FN3   FN5
+  HN3   FO4
+  HN3  FC4A
+  FC4  FC5A
+  FO4   FN5
+ FC4A   FC6
+ FC4A   FCA
+  FN5   HC6
+  FN5   FC7
+  FN5   FC9
+ FC5A  FCM7
+ FC5A   HC9
+ FC5A   FC8
+ FC5A   FCA
+  FC6  FCM8
+  FC6   FC9
+  HC6  FCM7
+  HC6   FC8
+ FCM7  FCM8
+ FCM7   FC9
+  FC9   FCA
+  HC9   FC7
+  HC9  FCM8
+; Pi	   
+; AMP	   
+  AN9   AC2
+  AN9   AC6
+  AC4   AN1
+  AC4   AN6
+  AN3   AC6
+  AN3   AN7
+  AN3   AC8
+  AN3  AC1*
+  AC2   AN6
+  AC2   AC5
+  AN1   AN7
+  AC6   AC8
+  AC5  AC1*
+  AN7  AC1*
+
+[ angles ]
+; FMN
+;  ai    aj    ak   gromos type
+ FN10  FC9A  FC5A     ga_26   
+ FN10  FC9A   FC9     ga_26   
+ FC5A  FC9A   FC9     ga_26   
+ FC9A  FN10 FC10A     ga_26   
+ FC9A  FN10   FCA     ga_26   
+FC10A  FN10   FCA     ga_26   
+ FN10 FC10A   FN1     ga_26   
+ FN10 FC10A  FC4A     ga_26   
+  FN1 FC10A  FC4A     ga_26   
+FC10A   FN1   FC2     ga_26   
+  FN1   FC2   FO2     ga_26   
+  FN1   FC2   FN3     ga_26   
+  FO2   FC2   FN3     ga_26   
+  FC2   FN3   HN3     ga_24   
+  FC2   FN3   FC4     ga_26   
+  HN3   FN3   FC4     ga_24   
+  FN3   FC4   FO4     ga_26   
+  FN3   FC4  FC4A     ga_26   
+  FO4   FC4  FC4A     ga_26   
+FC10A  FC4A   FC4     ga_26   
+FC10A  FC4A   FN5     ga_26   
+  FC4  FC4A   FN5     ga_26   
+ FC4A   FN5  FC5A     ga_26   
+ FC9A  FC5A   FN5     ga_26   
+ FC9A  FC5A   FC6     ga_26   
+  FN5  FC5A   FC6     ga_26   
+ FC5A   FC6   FC7     ga_26   
+ FC5A   FC6   HC6     ga_24
+  HC6   FC6   FC7     ga_24
+  FC6   FC7  FCM7     ga_26   
+  FC6   FC7   FC8     ga_26   
+ FCM7   FC7   FC8     ga_26   
+  FC7   FC8  FCM8     ga_26   
+  FC7   FC8   FC9     ga_26   
+ FCM8   FC8   FC9     ga_26   
+ FC9A   FC9   FC8     ga_26   
+ FC9A   FC9   HC9     ga_24
+  HC9   FC9   FC8     ga_24
+ FN10   FCA   FCB     ga_14   
+  FCA   FCB   FOB     ga_14   
+  FCA   FCB   FCG     ga_14   
+  FOB   FCB   FCG     ga_12   
+  FCB   FOB   HOB     ga_11   
+  FCB   FCG   FOG     ga_12   
+  FCB   FCG   FCD     ga_14   
+  FOG   FCG   FCD     ga_12   
+  FCG   FOG   HOG     ga_11   
+  FCG   FCD   FOD     ga_12   
+  FCG   FCD   FCE     ga_14   
+  FOD   FCD   FCE     ga_14   
+  FCD   FOD   HOD     ga_11   
+  FCD   FCE   FOZ     ga_14   
+  FCE   FOZ    FP     ga_25   
+  FOZ    FP  FOP1     ga_13   
+  FOZ    FP  FOP2     ga_13   
+  FOZ    FP  FOP3     ga_4    
+; Pi		      
+ FOP1    FP  FOP2     ga_28   
+ FOP3    FP  FOP1     ga_13   
+ FOP3    FP  FOP2     ga_13   
+; AMP		      
+  AC4   AN9   AC8     ga_6    
+  AC4   AN9  AC1*     ga_36   
+  AC8   AN9  AC1*     ga_36   
+  AN9   AC4   AN3     ga_38   
+  AN9   AC4   AC5     ga_6    
+  AN3   AC4   AC5     ga_26   
+  AC4   AN3   AC2     ga_26   
+  AN3   AC2   AN1     ga_26   
+  AC2   AN1   AC6     ga_26   
+  AN1   AC6   AN6     ga_26   
+  AN1   AC6   AC5     ga_26   
+  AN6   AC6   AC5     ga_26   
+  AC6   AN6  HN61     ga_22   
+  AC6   AN6  HN62     ga_22   
+ HN61   AN6  HN62     ga_23   
+  AC4   AC5   AC6     ga_26   
+  AC4   AC5   AN7     ga_6    
+  AC6   AC5   AN7     ga_38   
+  AC5   AN7   AC8     ga_6    
+  AN9   AC8   AN7     ga_6    
+  AN9  AC1*  AO4*     ga_8    
+  AN9  AC1*  AC2*     ga_8    
+ AO4*  AC1*  AC2*     ga_8    
+ AC1*  AO4*  AC4*     ga_9    
+ AO4*  AC4*  AC3*     ga_8    
+ AO4*  AC4*  AC5*     ga_8    
+ AC3*  AC4*  AC5*     ga_7    
+ AC1*  AC2*  AO2*     ga_8    
+ AC1*  AC2*  AC3*     ga_7    
+ AO2*  AC2*  AC3*     ga_8    
+ AC2*  AO2*  HO2*     ga_11   
+ AC4*  AC3*  AC2*     ga_7    
+ AC4*  AC3*  AO3*     ga_8    
+ AC2*  AC3*  AO3*     ga_8    
+ AC3*  AO3*  HO3*     ga_11   
+ AC4*  AC5*  AO5*     ga_8    
+ AC5*  AO5*    AP     ga_25   
+ AO5*    AP  AOP1     ga_13   
+ AO5*    AP  AOP2     ga_13   
+ AO5*    AP  FOP3     ga_4    
+ AOP1    AP  AOP2     ga_28   
+ AOP1    AP  FOP3     ga_13   
+ AOP2    AP  FOP3     ga_13   
+   AP  FOP3    FP     ga_25   
+
+[ dihedrals ]
+; FMN
+;  ai    aj    ak    al   gromos type
+FC10A  FC4A   FN5  FC5A     gd_4    
+ FC4A   FN5  FC5A  FC9A     gd_4    
+ FC5A  FC9A  FN10 FC10A     gd_4    
+ FC9A  FN10 FC10A  FC4A     gd_4    
+ FC9A  FN10   FCA   FCB     gd_20   
+ FN10   FCA   FCB   FCG     gd_17   
+  FCA   FCB   FOB   HOB     gd_12   
+  FCA   FCB   FCG   FCD     gd_17   
+  FCB   FCG   FOG   HOG     gd_12   
+  FCB   FCG   FCD   FCE     gd_17   
+  FCG   FCD   FOD   HOD     gd_12   
+  FCG   FCD   FCE   FOZ     gd_17   
+  FCD   FCE   FOZ    FP     gd_14   
+; Pi			    
+   AP  FOP3    FP   FOZ     gd_11   
+   AP  FOP3    FP   FOZ     gd_9    
+ FOP1    FP   FOZ   FCE     gd_11   
+ FOP1    FP   FOZ   FCE     gd_9    
+; AMP			    
+  AC5   AC6   AN6  HN61     gd_4    
+ AO4*  AC1*   AN9   AC4     gd_6    
+ AC1*  AC2*  AO2*  HO2*     gd_12   
+ AC4*  AC3*  AO3*  HO3*     gd_12   
+ AC4*  AO4*  AC1*  AC2*     gd_14   
+ AC3*  AC4*  AO4*  AC1*     gd_14   
+ AC3*  AC2*  AC1*  AO4*     gd_17   
+ AC3*  AC2*  AC1*  AO4*     gd_7    
+ AO2*  AC2*  AC1*   AN9     gd_7    
+ AO2*  AC2*  AC1*  AO4*     gd_8    
+ AC4*  AC3*  AC2*  AC1*     gd_17   
+ AO3*  AC3*  AC2*  AC1*     gd_7    
+ AC4*  AC3*  AC2*  AO2*     gd_7    
+ AO3*  AC3*  AC2*  AO2*     gd_8    
+ AC5*  AC4*  AC3*  AC2*     gd_17   
+ AC5*  AC4*  AC3*  AO3*     gd_7    
+ AO4*  AC4*  AC3*  AC2*     gd_7    
+ AO4*  AC4*  AC3*  AO3*     gd_8    
+ AO5*  AC5*  AC4*  AC3*     gd_17   
+ AO5*  AC5*  AC4*  AC3*     gd_7    
+ AO5*  AC5*  AC4*  AO4*     gd_8    
+ AC4*  AC5*  AO5*    AP     gd_14   
+ AC5*  AO5*    AP  AOP1     gd_11   
+ AC5*  AO5*    AP  AOP1     gd_9    
+ AO5*    AP  FOP3    FP     gd_11   
+ AO5*    AP  FOP3    FP     gd_9    
+
+[ impropers ]
+; FMN
+;  ai    aj    ak    al   gromos type
+  FC2   FN1   FN3   FO2     gi_1    
+  FN3   FC2   FC4   HN3     gi_1    
+  FC4   FN3  FC4A   FO4     gi_1    
+  FN1   FC2   FN3   FC4     gi_1    
+  FC2   FN3   FC4  FC4A     gi_1    
+  FN3   FC4  FC4A FC10A     gi_1    
+  FC4  FC4A FC10A   FN1     gi_1    
+ FC4A FC10A   FN1   FC2     gi_1    
+FC10A   FN1   FC2   FN3     gi_1    
+ FC4A   FC4   FN5 FC10A     gi_1    
+FC10A   FN1  FN10  FC4A     gi_1    
+ FN10 FC10A  FC4A   FN5     gi_1    
+ FN10  FC9A  FC5A   FN5     gi_1    
+ FC5A   FN5   FC6  FC9A     gi_1    
+ FC9A  FN10   FC9  FC5A     gi_1    
+ FC5A   FC6   FC7   FC8     gi_1    
+  FC6   FC7   FC8   FC9     gi_1    
+  FC7   FC8   FC9  FC9A     gi_1    
+  FC8   FC9  FC9A  FC5A     gi_1    
+  FC9  FC9A  FC5A   FC6     gi_1    
+ FC9A  FC5A   FC6   FC7     gi_1    
+  FC6  FC5A   FC7   HC6     gi_1
+  FC7   FC6   FC8  FCM7     gi_1    
+  FC8   FC7   FC9  FCM8     gi_1    
+  FC9  FC9A   FC8   HC9     gi_1
+  FCB   FOB   FCG   FCA     gi_2    
+  FCG   FOG   FCD   FCB     gi_2    
+  FCD   FOD   FCE   FCG     gi_2    
+; Pi
+; no impropers in the phosphates...
+; AMP
+  AN9   AC8   AC4  AC1*     gi_1    
+  AC4   AN9   AC8   AN7     gi_1    
+  AC8   AN9   AC4   AC5     gi_1    
+  AN9   AC8   AN7   AC5     gi_1    
+  AN9   AC4   AC5   AN7     gi_1    
+  AC8   AN7   AC5   AC4     gi_1    
+  AC4   AN9   AN3   AC5     gi_1    
+  AC5   AC6   AN7   AC4     gi_1    
+  AN3   AC4   AC5   AC6     gi_1    
+  AC4   AC5   AC6   AN1     gi_1    
+  AC5   AC4   AN3   AC2     gi_1    
+  AC5   AC6   AN1   AC2     gi_1    
+  AC4   AN3   AC2   AN1     gi_1    
+  AN3   AC2   AN1   AC6     gi_1    
+  AC6   AC5   AN1   AN6     gi_1    
+  AN6  HN61  HN62   AC6     gi_1    
+ AC1*   AN9  AO4*  AC2*     gi_2    
+ AC4*  AO4*  AC5*  AC3*     gi_2    
+ AC2*  AO2*  AC3*  AC1*     gi_2    
+ AC3*  AC2*  AO3*  AC4*     gi_2    

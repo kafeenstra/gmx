@@ -1,0 +1,784 @@
+#!/bin/csh -f
+
+#########################################################################
+#									#
+#	       ljob: Self-Resubmitting Queue Job Script			#
+#	    (c) 2001/2002 K.A. Feenstra (anton@chem.rug.nl)		#
+#									#
+#########################################################################
+
+# This job script will (re)submit itself running in a queue.
+# When invoked from the commandline it will simply submit itself to the queue.
+# It will recognize mdrun terminating before the timeout expires and will
+# not resubmit in that case. It will recognize a crash, attempt to recover
+# and resubmit, but only once (i.e. an immediate second crash will not get
+# recovered, as that will result in an infinite loop). It will also not 
+# resubmit if something went wrong with the previous execution of the script.
+
+echo "This is ljob version 3.2: Self-Resubmitting Queue Job Script"
+echo "(c) 2001/2002 K.A. Feenstra (feenstra@chem.vu.nl)"
+
+# Version history:
+# 3.2 2002/09/05
+#     - don't use TMPDIR on xtc
+#     - fixed cmdline generation for qsub
+#     - added knowledge about single/dual queues on xtc
+#     - added cmdline options -notmp and -nosub
+# 3.1 2002/08/06
+#     - Added support for local temporary directory
+#     - Added support for mixed NCPU/NODE clusters (like xtc and hpc)
+# 3.0 2002/04/14
+#     - Added support for xtc cluster at FAR/VU
+#
+# 2.6 2001/10/01
+#     - fixed bug for time-out for md?.log appearance
+# 2.5 2001/08/18
+#     - added check for NP setting of queue
+# 2.4 2001/05/18
+#     - added command line option to set node properties
+#     - fixed automatic job name 
+# 2.3 2001/04/26
+#     - fixed 'waiting' for already crashed mdrun
+#     - added check for output files in crash recovery
+# 2.2 2001/04/19
+#     - e-mail on crash recovery
+# 2.1 2001/04/11
+#     - get number of processors from tpr file
+# 2.0 2001/04/09
+#     - major revision to make efficient restart/requeueing possible
+#     - hostname dependent setup makes one version run on different machines
+#     - add time-out for waiting for $MDLOG to appear
+#     - changed to 74 hrs limit on odhinn
+#
+# 1.11 2001/03/02
+#     - also move step*.pdb (after crash) and *.[oe]* (stdout/err) to subdir
+#     - changed time-keeping from counting 'sleep' to using date in seconds
+#     - added $MAILHOST to send mail from
+# 1.10 2001/01/15
+#     - added crash recovery
+# 1.9 2001/01/09
+#     - execute $QUEBIN/qsub on $SERVERHOST
+# 1.8 2000/12/20
+#     - adapted for asgard cluster (added mpi init/stop and 168 hrs limit)
+#     - truncate auto-name to 15 characters (maximum for pbs queue)
+# 1.7 2000/10/31
+#     - send USR1 signal to mdrun iso TERM
+# 1.6 2000/6/19
+#     - keep on looking for free directory forever, but give warning at 100
+# 1.5 2000/3/30
+#     - extract nice job name from execution directory
+# 1.4 2000/3/22
+#     - send mail to $USER@chem.rug.nl after mdrun terminates
+#     - execute trjconv on server ($SERVERHOST), reduces network load and time
+#     - commit on 'walltime' i.s.o. 'cputime'
+# 1.3 2000/2/21
+#     - wait after sending TERM signal for mdrun to finish by itself
+#     - added echo statements for easier debugging
+#     - changed check for unsed dirnames
+#     - removed use of `basename $0`, script gets copied to different name
+# 1.2 2000/2/15
+#     - uses $PBS_ENVIRONMENT to see if we are running from the shell or 
+#       from the queue so we can submit ourselves the first time
+#     - added remark for 'basename $0'
+#     - while sleeping, checks if mdrun is still running
+# 1.1 2000/2/14
+#     - sleep duration dependent on $TIME variable
+# 1.0 2000/2/14
+#     - initial release
+
+#########################################################################
+#									#
+#		H O S T  D E P E N D E N T  O P T I O N S		#
+#									#
+#		   you shouldn't need to change these			#
+#      just add another label when running on a different machine	#
+#									#
+#########################################################################
+
+set domain = `domainname`
+set host = `hostname -s`
+switch ( $domain )
+case "":
+    if ( `echo $host | grep xtc | wc -l` ) then
+	set machine = "xtc"
+    else
+	set machine = "xp10"
+    endif
+    breaksw
+case "faroac":
+    set machine = "xtc"
+    breaksw
+case "aesir":
+    set machine = "odhinn"
+    breaksw
+default:
+    echo "FATAL ERROR: Unknown host/domain ($host/$domain) to run on."
+    exit
+endsw
+
+echo "Determined machine type: $machine"
+
+switch ( $machine )
+case "xp10":
+    # xp10 Alpha Cluster at Rekencentrum
+    # queue time limit in hours
+    set TIME = 24
+    # number of CPU's per node
+    set NC = 1
+    # GROMACS binaries directory
+    set GMXDIR = ~gmx/gmx2.1/bin/alx
+    # server hostname
+    set SERVERHOST = stad
+    # mpi binaries directory
+    set MPIBIN = /opt/mpich-1.2.0-1/bin
+    # queue binaries directory
+    set QUEBIN = /opt/pbs/bin
+    # host to send mail from (cannot send mail from nodes or from odhinn!)
+    set MAILHOST = $SERVERHOST
+    breaksw
+case "odhinn":
+    # odhinn Intel Linux Cluster at MDgroup/RuG
+    # queue time limit in hours
+    set TIME = 72
+    # number of CPU's per node
+    set NC = 2
+    # GROMACS binaries directory
+    set GMXDIR = ~gmx/gmx2.1/bin/lnx
+    # server hostname
+    set SERVERHOST = odhinn
+    # mpi binaries directory
+    set MPIBIN = /usr/bin
+    # command to start mpi
+    set MPISTART = "$MPIBIN/lamboot /usr/local/lam-6.3.2/boot/nodes/$HOSTNAME"
+    # command to stop mpi
+    set MPISTOP = $MPIBIN/wipe.local
+    # queue binaries directory
+    set QUEBIN = /usr/local/bin
+    # host to send mail from (cannot send mail from nodes or from odhinn!)
+    set MAILHOST = rugmd64
+    breaksw
+case "xtc":
+    # xtc Intel Linux Cluster at FAR/VU
+    # queue time limit in hours
+    set TIME = 320
+    # number of CPU's per node varies on xtc, don't set
+    #set NC = 1
+    set NODEPROPS = `echo single dual`
+    # GROMACS binaries directory
+    set GMXDIR = ~/bin
+    setenv LD_LIBRARY_PATH ~/lib
+    # server hostname
+    set SERVERHOST = xtc0fs
+    # mpi binaries directory
+    set MPIBIN = /usr/local/mpich/bin
+    # queue binaries directory
+    set QUEBIN = /usr/local/bin
+    # host to send mail from (cannot send mail from nodes)
+    set MAILHOST = $SERVERHOST
+# don't use temp dir...
+#    # local temporary directory
+#    set TMPDIR = /tmp1/$USER
+    breaksw
+default:
+    echo "FATAL ERROR: Unknown machine type $machine to run on."
+    exit
+endsw
+
+#########################################################################
+#									#
+#	     U S E R  M O D I F I A B L E  S E C T I O N		#
+#									#
+#		   change this to match your wishes			#
+#									#
+#########################################################################
+
+# mdrun binary path
+set MDRUN = $GMXDIR/mdrun
+set MDRUN_MPI = ${MDRUN}_mpi
+if ( ! -f $MDRUN_MPI ) set MDRUN_MPI = $MDRUN
+if ( $?MPIBIN ) then
+    # mpirun binary path
+    set MPIRUN = $MPIBIN/mpirun
+endif
+# qsub binary path
+set QSUB = $QUEBIN/qsub
+
+# this is the name that will show up in the queue status.
+# set to AUTO to generate from directory name, or choose a name yourself...
+set NAME = AUTO
+
+# disk usage limit (in 'du' units, usually kb, 1G seems reasonable)
+set DULIMIT = 1048576
+
+# some timing issues, depend on .mdp settings
+# minutes needed for mdrun to write next (last) trr frame 
+set POSTFRAME = 60
+# minutes needed for tpbconv to read trajectory and write new tpr.
+set POSTPR = 10
+
+# my own name. ! CHANGE THIS IF YOU CHANGE THE FILE NAME OF THE SCRIPT !
+set JOB = ljob
+
+# e-mail adress to notify on end of job
+set EMAIL = $USER@chem.vu.nl
+
+#########################################################################
+#									#
+#      E N D  O F  U S E R  M O D I F I A B L E  S E C T I O N		#
+#									#
+#########################################################################
+
+set NDIR = 0
+# calculate # seconds to run from $TIME (hours) and $POSTFRAME / TPR (minutes)
+set minutes = `echo $TIME | awk '{print $1*60}'`
+@ stime = ( $minutes - ( $POSTPR + $POSTFRAME ) ) * 60
+@ ttime = ( $minutes - $POSTPR ) * 60
+
+# check command line options
+while ( $#argv )
+    set n = `echo $1 | awk '{print $1+0}'`
+    if ( $n ) then
+	# set nr of cpu's per node:
+	set NC = $1
+	echo "Will submit job for $NC cpu's per node"
+    else if ( "$1" == "-notmp" ) then
+	if ( $?TMPDIR ) then
+	    echo "Will not use temporary directory" $TMPDIR "on node(s)"
+	    unset TMPDIR
+	endif
+    else if ( "$1" == "-nosub" ) then
+	echo "Will not actually submit"
+	set QSUB = echo
+    else
+	# set node properties
+	set NT = $1
+	echo "Will submit job for $NT nodes"
+    endif
+    shift
+end
+if ( ! $?NC ) then
+    echo "WARNING: no default number of CPU's per node set..."
+endif
+
+# if we're run from the queue, start mdrun, else queue myself
+if ( $?PBS_ENVIRONMENT ) then 
+  # we're running in the queue. time for action
+  
+  # remember current time:
+  set starttime = `date +%s`
+  @ endtime = $starttime + $stime
+  @ termtime = $starttime + $ttime
+  echo `date` "Now: $starttime. Run upto $endtime ($stime s). Terminate at $termtime ($ttime s)."
+  
+  # go to directory where qsub whas executed
+  cd $PBS_O_WORKDIR
+  echo `date` "Entered" `pwd`
+
+  # check for remaining outputfiles from previous run
+  if ( -f traj.trr || -f traj.xtc || -f ener.edr ) then
+    echo `date` "Output files from previous run detected"
+    # check if existing topol.tpr is older than output files
+    # if it is older or doesn't exist, we'll generate a new one
+    # if it is newer, we'll use it to start the run
+    if ( ! -f topol.tpr || ( -M topol.tpr < -M traj.trr ) ) then
+	set w = "No"
+	if ( -f topol.tpr ) set w = "Old"
+	    echo `date` $w "topol.tpr found. Generating new..."
+	set return = ret3
+	set ONSERVER
+	goto tpbconv
+	unset ONSERVER
+	ret3:
+    endif
+    
+    # move output files to subdirectory
+    set return = ret4
+    goto dirclean
+    ret4:
+  endif
+
+  # check for use of local temp directory:
+  if ( $?TMPDIR ) then
+    mkdir -p $TMPDIR
+    if ( -d $TMPDIR ) then
+      cp topol.tpr $TMPDIR
+      cd $TMPDIR
+    else
+      echo `date` "WARNING: $TMPDIR does not exist, and cannot create."
+      unset TMPDIR
+    endif
+  endif
+  
+  # calculate number of CPU's and nodes to use
+  set return = ret5
+  goto calcnp
+  ret5:
+  
+  if ( $?MPISTART ) then
+    # start MPI
+    echo `date` "Starting mpi using" $MPISTART
+    $MPISTART
+  endif
+  
+  # start run
+  # first get rid of old $MDLOG
+  mv $MDLOG #$MDLOG#
+  if ( $?MPIRUN ) then
+    echo `date` "Spawning $MPIRUN $MDRUN_MPI"
+    $MPIRUN -machinefile $PBS_NODEFILE -np $NP $MDRUN_MPI -np $NP >&! md.job &
+  else
+    echo `date` "Spawning $MDRUN"
+    $MDRUN -np $NP >&! md.job &
+  endif
+  
+  # wait till $MDLOG appears, count 120 seconds from now!
+  set starttime = `date +%s`
+  set wtime = 120
+  @ waittime = $starttime + $wtime
+  echo `date` "Waiting for $MDLOG to appear or at most $wtime s"
+  while ( ! -f $MDLOG && ( `date +%s` < $waittime ) )
+    sleep 1
+  end
+  if ( ! -f $MDLOG ) then
+    echo `date` "FATAL ERROR: $MDLOG failed to appear in $wtime s"
+    touch FATAL_ERROR
+    exit
+  endif
+
+  # if we write to local temporary dir, make 'streaming copy' of logfile:
+  if ( $?TMPDIR ) then
+    tail -10000f ${MDLOG} >! ${PBS_O_WORKDIR}/${MDLOG} &
+  endif
+  # watch $MDLOG to see if mdrun finishes, or terminate at time=$endtime
+  echo `date` "Waiting for mdrun to finish or $stime s to pass"
+  set interval = 60
+  set CONT = 1
+  while ( $CONT && (`date +%s` < $endtime) )
+    sleep $interval
+    # check for occurrence of 'nan' (not-a-numbers) in logfile
+    # and please ignore 'warnangle' (contains 'rnan')
+    if ( `tail ${MDLOG} | grep "[^r]nan" | wc -l` > 0 ) then 
+      set CONT = 0
+      echo `date` "Not-a-number detected in ${MDLOG}"
+    endif
+    if ( `du -ks .` > ${DULIMIT} ) then 
+      set CONT = 0
+      echo `date` "Disk use limit exceeded"
+    endif
+    if ( `/sbin/fuser ${MDLOG} | wc -l` == 0 ) then 
+      set CONT = 0
+      echo `date` "No process associated with ${MDLOG}"
+    endif
+  end
+
+  # check if mdrun is still running
+  if ( `/sbin/fuser ${MDLOG} | wc -l` == 0 ) then
+    # if confout isn't present, the run crashed, now check if we simulated
+    # a reasonable time, if yes we recover, else set flag TERMIATED and exit
+    if ( ! -f confout.gro ) then
+      echo `date` "mdrun crashed"
+      if ( `grep "Step *Time" ${MDLOG} | wc -l` > 2 ) then
+        set RECOVER_TIME = `grep "        0.00000        1.00000" ${MDLOG} | tail -2 | head -1 | awk '{print $2}'`
+	set DONE_WHAT = "recovers from crash"
+      else
+        set DONE_WHAT = "crashed"
+        touch TERMINATED
+      endif
+    else
+      echo `date` "mdrun finished"
+      set DONE_WHAT = "finished"
+      set EXIT
+    endif
+    if ( $?DONE_WHAT ) then
+      echo `date` "preparing to send mail to $EMAIL"
+      \rm temp_mail_file
+      echo "subject: job $PBS_JOBNAME on $HOST $DONE_WHAT" >>! temp_mail_file
+      set SUBJECT = "job $PBS_JOBNAME on $HOST $DONE_WHAT"
+      echo "" >>! temp_mail_file
+      echo "job $PBS_JOBNAME ($JOB, $0) on host $HOST" >>! temp_mail_file
+      echo "in dir $PBS_O_WORKDIR $DONE_WHAT at" `date` >>! temp_mail_file
+      echo "Directory listing of $PBS_O_WORKDIR" >>! temp_mail_file
+      ls -l >>! temp_mail_file
+      echo "." >>! temp_mail_file
+      set return = ret7
+      goto mail
+      ret7:
+      if ( $?RECOVER_TIME ) then
+	echo "Will try to recover."
+      else
+	if ( $?TMPDIR ) then
+	    echo `date` "Recovering files from $TMPDIR"
+	    mv * $PBS_O_WORKDIR
+	endif
+	echo "Will now give up. (exiting)"
+	exit
+      endif
+    endif
+  endif
+
+  # if any flags remain (from previous job), set flag FATAL_ERROR and exit
+  if ( -f TERMINATED || -f RESUBMITTING ) then
+    echo `date` "FATAL ERROR: debris from previous run remaining, clean up and think."
+    touch FATAL_ERROR
+    exit
+  endif
+
+  # set flag
+  touch RESUBMITTING
+  
+  if ( ! $?RECOVER_TIME ) then
+    # send USR1 signal to process 0
+    echo `date` "sending mdrun the USR1 signal"
+    kill -USR1 `head -1 ${MDLOG} | awk '{print $14}'`
+
+    # wait for mdrun to finish (at next trr frame) or to time=$termtime
+    echo `date` "Waiting for mdrun to respond to USR1 signal"
+    set interval = 10
+    while ( (`/sbin/fuser ${MDLOG} | wc -l` > 0) && (`date +%s` < $termtime) )
+	sleep $interval
+    end
+
+    if ( `/sbin/fuser ${MDLOG} | wc -l` > 0 ) then
+	echo `date` "WARNING: mdrun did not finish in time, starting tpbconv anyway"
+    endif
+  endif
+  
+  # make new tpr file and clean up
+  if ( $?RECOVER_TIME ) then
+    if ( $?TMPDIR ) then
+      echo `date` "starting crash recovery from frame at $RECOVER_TIME ps (using $GMXDIR/tpbconv,trjconv $TMPDIR)"
+      set EXTEND_TIME = `( grep "        0.00000        1.00000" ${MDLOG} | head -1 | awk '{printf "%s ", $2}' ; echo $RECOVER_TIME ) | awk '{print $1-$2}'`
+      echo 0 | $GMXDIR/trjconv -f traj.trr -s -o frame.gro -ndec 6 -dump $RECOVER_TIME >&! tpbconv.job
+    else
+      echo `date` "starting crash recovery from frame at $RECOVER_TIME ps (using $GMXDIR/tpbconv,trjconv on host $SERVERHOST in $PBS_O_WORKDIR)"
+      set EXTEND_TIME = `( grep "        0.00000        1.00000" ${MDLOG} | head -1 | awk '{printf "%s ", $2}' ; echo $RECOVER_TIME ) | awk '{print $1-$2}'`
+      rsh $SERVERHOST "cd $PBS_O_WORKDIR; echo 0 | $GMXDIR/trjconv -f traj.trr -s -o frame.gro -ndec 6 -dump $RECOVER_TIME" >&! tpbconv.job
+    endif
+    set return = ret8; set CHECK_FILE = frame.gro; set CHECK_PROG = trjconv
+    goto check_file
+    ret8:
+    $GMXDIR/trjconv -f frame.gro -o frame.trr >>& tpbconv.job
+    set return = ret9; set CHECK_FILE = frame.trr; set CHECK_PROG = trjconv
+    goto check_file
+    ret9:
+    $GMXDIR/tpbconv -f frame -extend $EXTEND_TIME >>& tpbconv.job
+  else
+    # generate new tpr file using tpbconv
+    set return = ret1
+    goto tpbconv
+    ret1:
+  endif
+  set return = ret10; set CHECK_FILE = tpxout.tpr; set CHECK_PROG = tpbconv
+  goto check_file
+  ret10:
+
+  if ( $?MPISTOP ) then
+    # stop MPI
+    echo `date` "Stopping mpi using" $MPISTOP
+    $MPISTOP
+  endif
+
+  # move output files to new subdirectory
+  set return = ret2
+  goto dirclean
+  ret2:
+else
+  # we're running from the user shell
+  # check our own name
+  if ( `basename $0` != ${JOB} ) then
+    echo "WARNING: variable \$JOB set to ${JOB}, while I am called" `basename $0`
+  endif
+  # check input file
+  if ( ! -f topol.tpr ) then
+    echo ""
+    echo "FATAL ERROR: No input file for mdrun 'topol.tpr' detected"
+    echo ""
+    exit
+  else
+    # calculate number of CPU's and nodes to use
+    set return = ret6
+    goto calcnp
+    ret6:
+  
+    echo ""
+    echo "Will queue first job '${JOB}' on ${NODES} nodes and ${NP} CPU's for ${TIME} hours"
+    echo ""
+    echo "Please make sure your topol.tpr is in fact generated for ${NP} CPU's"
+    echo ""
+  endif
+endif
+
+# get jobname
+if ( "$NAME" == "AUTO" ) then
+    if ( $?DIR) then
+      @ NDIR = $DIR + 1
+    endif
+    set NAME = `pwd | awk -F\/ -v user=$USER '{i=0; while ( $i != user ) i++; while (i<NF) {i++; printf("-%s",$i)} }'`-$NDIR
+    set NAME = `echo $NAME | awk '{n=16; print substr($0, length-n+1, n)}' | sed 's/^[^-]*-//' | sed 's/^\([0-9]\)/x\1/'`
+endif
+
+# submit myself
+echo `date` "submitting ${JOB} ($NAME)"
+set TTIME = `echo $TIME | awk '{hh=$1; h=int(hh); m=int(hh*60) % 60; s=int(hh*3600) % 60; printf "%02d:%02d:%02d", h, m, s}'`
+# set default options, and turn on command line echo:
+if ( ! $?QSUBOPT ) set QSUBOPT = ""
+if ( ! $?NC ) set NC = 1
+if ( $?NODEPROPS ) then
+    if ( "$NODEPROPS[$NC]" != "" ) then
+	set QNODESOPT = ":"$NODEPROPS[$NC]
+	echo "Will run on" $NODEPROPS[$NC] "node(s)"
+    endif
+endif
+if ( ! $?QNODESOPT ) set QNODESOPT = ""
+if ( $?TMPDIR ) then
+    set QSTAGEOUTOPT = "-W stageout=${cwd}@${SERVERHOST}:${TMPDIR}/\*"
+else
+    set QSTAGEOUTOPT = ""
+endif
+echo \
+$QSUB $QSUBOPT -N $NAME -l nodes=${NODES}:ppn=${NC}${QNODESOPT},walltime=${TTIME} ${JOB} ${QSTAGEOUTOPT}
+$QSUB $QSUBOPT -N $NAME -l nodes=${NODES}:ppn=${NC}${QNODESOPT},walltime=${TTIME} ${JOB} ${QSTAGEOUTOPT}
+if ( $status ) echo `date` "FATAL ERROR: qsub failed"
+if ( $QSUB == "echo" ) echo "WARNING: not submitted"
+
+# remove flag
+if ( -f RESUBMITTING ) \rm -f RESUBMITTING
+
+exit
+
+#########################################################################
+#									#
+#			S U B R O U T I N E S				#
+#									#
+#########################################################################
+
+#########################################################################
+# calcnp								#
+# calculate number of CPU's and nodes to use				#
+calcnp:
+    if ( ! $?return ) then
+	echo "DEATH HORROR ERROR: no return value set"
+	exit
+    endif
+    set myreturn = $return
+    unset return
+    
+    if ( ! -f topol.tpr ) then
+	echo "DEATH HORROR ERROR: no topol.tpr in calcnp"
+	exit
+    endif
+    echo `date` "Determining number of processors in topology..."
+    # first get NP from tpr file: count CGS division over processors
+    set NP = `$GMXDIR/gmxdump -s topol.tpr |& awk 't==1 {for(i=0; i<NF; i++) {if ($i+0!=0) NP++}; print NP; exit} /CGS/ {t=1}'`
+    # get NC if it is not set:
+    if ( ! $?NC ) then
+     if ( $?PBS_NODEFILE ) then
+      if ( -f $PBS_NODEFILE ) then
+        echo -n "Will use $PBS_NODEFILE to determine how many processors there are per node"
+	set NC = `awk '{if (! p || p==$1) n++; else exit; p=$1} END {print n}' $PBS_NODEFILE`
+	echo -n ": $NC"
+      endif
+     else
+        echo "WARNING: Will assume we want a node with $NP CPU's"
+        set NC = $NP
+     endif
+    endif
+    # check if we need less processors (NP) than there are per node (NC)
+    if ( $NP < $NC ) set NC = $NP
+    # calculate number of nodes (NN) we need (beware of csh rounding!)
+    @ NN = ( $NP - 1 ) / $NC + 1
+    
+    if ( $?NT ) then
+	set NODES = ${NN}:${NT}
+    else
+	set NODES = ${NN}
+    endif
+    
+    # set mdrun logfile name
+    if ( $NP == 1 ) then
+	set MDLOG = md.log
+    else
+	set MDLOG = md0.log
+    endif
+    echo `date` "Found topol.tpr for $NP processor(s), will use $NODES nodes with $NC processors each and assume mdrun logs to $MDLOG"
+    
+    if ( $?PBS_NODEFILE ) then
+      if ( -f $PBS_NODEFILE ) then
+	echo -n "Will use $PBS_NODEFILE to determine on how many processors we are allowed to run"
+	set QNP = `cat $PBS_NODEFILE | wc -l`
+	echo -n ": $QNP"
+	if ( $NP == $QNP ) then
+	    echo ", is OK."
+	else
+	    echo ", NOT OK."
+	endif
+	if ( $NP > $QNP ) then
+	    echo "FATAL ERROR: queue set us to run on only $QNP processor(s), while topol.tpr is set for $NP processor(s)"
+	    echo `date` "preparing to send mail to $EMAIL"
+	    \rm temp_mail_file
+	    echo "subject: job $PBS_JOBNAME on $HOST not started" >>! temp_mail_file
+	    set SUBJECT = "job $PBS_JOBNAME on $HOST $DONE_WHAT"
+	    echo "" >>! temp_mail_file
+	    echo "job $PBS_JOBNAME ($JOB, $0) on host $HOST" >>! temp_mail_file
+	    echo "in dir $PBS_O_WORKDIR not started at" `date` >>! temp_mail_file
+	    echo "queue was set to run on $QNP processor(s), while topol.tpr is set for $NP processor(s)" >>! temp_mail_file
+	    echo "." >>! temp_mail_file
+	    set return = ret11
+	    goto mail
+	    ret11:
+	    exit
+	endif
+	if ( $NP < $QNP ) then
+	    echo "WARNING: queue set us to run on $QNP processor(s), while topol.tpr is set for only $NP processor(s) (the job will run but waste CPU time)"
+	    echo `date` "preparing to send mail to $EMAIL"
+	    \rm temp_mail_file
+	    echo "subject: job $PBS_JOBNAME on $HOST wastes CPU" >>! temp_mail_file
+	    set SUBJECT = "job $PBS_JOBNAME on $HOST $DONE_WHAT"
+	    echo "" >>! temp_mail_file
+	    echo "job $PBS_JOBNAME ($JOB, $0) on host $HOST" >>! temp_mail_file
+	    echo "in dir $PBS_O_WORKDIR wastes CPU at" `date` >>! temp_mail_file
+	    echo "queue was set to run on $QNP processor(s), while topol.tpr is set for only $NP processor(s)" >>! temp_mail_file
+	    echo "." >>! temp_mail_file
+	    set return = ret12
+	    goto mail
+	    ret12:
+	endif
+      endif
+    endif
+    
+    goto $myreturn
+    echo "DEATH HORROR ERROR: execute past 'return'"
+# end of calcnp:							#
+#########################################################################
+
+
+#########################################################################
+# tpbconv								#
+# generate new tpr file using tpbconv					#
+tpbconv:
+    if ( ! $?return ) then
+	echo "DEATH HORROR ERROR: no return value set"
+	exit
+    endif
+    set myreturn = $return
+    unset return
+    
+    if ( $?TMPDIR && ! $?ONSERVER ) then
+      echo `date` "starting $GMXDIR/tpbconv in $TMPDIR"
+      $GMXDIR/tpbconv -f >&! tpbconv.job
+    else
+      echo `date` "starting $GMXDIR/tpbconv on host $SERVERHOST in $PBS_O_WORKDIR"
+      rsh $SERVERHOST $GMXDIR/tpbconv -f $PBS_O_WORKDIR/traj.trr -s $PBS_O_WORKDIR/topol.tpr -o $PBS_O_WORKDIR/tpxout.tpr >&! tpbconv.job
+    endif
+    goto $myreturn
+    echo "DEATH HORROR ERROR: execute past 'return'"
+# end of tpbconv:							#
+#########################################################################
+
+
+#########################################################################
+# dirclean								#
+# move output files to new subdirectory					#
+dirclean:
+    if ( ! $?return ) then
+	echo "DEATH HORROR ERROR: no return value set"
+	exit
+    endif
+    set myreturn = $return
+    unset return
+    
+    # find unused dir
+    set dir = 1
+    if ( $?TMPDIR ) then
+	set DIR = $PBS_O_WORKDIR/$dir
+    else
+	set DIR = $dir
+    endif
+    while ( -e $DIR )
+	if ( $DIR == 500 ) echo `date` "WARNING: Seeking directory past $DIR, something wrong?"
+	if ( ! -d $DIR ) echo `date` "WARNING: File $DIR exists"
+	@ dir ++
+	if ( $?TMPDIR ) then
+	    set DIR = $PBS_O_WORKDIR/$dir
+	else
+	    set DIR = dir
+	endif
+    end
+    # put old stout and stderr file in last dir
+    @ pdir = $dir - 1
+    if ( $?TMPDIR ) then
+	set PDIR = $PBS_O_WORKDIR/$pdir
+    else
+	set PDIR = pdir
+    endif
+    if ( -d $PDIR ) mv *.[oe][0-9]* $PDIR
+    # put old files in new dir
+    echo `date` "moving old stuff to $DIR"
+    mkdir $DIR
+    mv traj.xtc md.job md.log traj.trr ener.edr mdout.mdp confout.gro $DIR
+    mv frame.gro frame.trr $DIR
+    mv md*.log $DIR
+    mv step*.pdb $DIR
+
+    # now put new tpr file in place for mdrun
+    if ( -f tpxout.tpr ) then
+	mv topol.tpr $DIR
+	mv tpxout.tpr topol.tpr
+    endif
+    
+    goto $myreturn
+    echo "DEATH HORROR ERROR: execute past 'return'"
+# end of dirclean:							#
+#########################################################################
+
+#########################################################################
+# mail									#
+# send temp_mail_file to $EMAIL via $SERVERHOST and $MAILHOST		#
+mail:
+    if ( ! $?return ) then
+	echo "DEATH HORROR ERROR: no return value set"
+	exit
+    endif
+    set myreturn = $return
+    unset return
+    
+    if ( $?MAILHOST ) then
+	if ( $SERVERHOST == $MAILHOST ) then
+	    rsh $MAILHOST mail $EMAIL < temp_mail_file
+	else
+	    rsh $SERVERHOST rsh $MAILHOST mail $EMAIL < temp_mail_file
+	endif
+    else
+	mail -s $SUBJECT $EMAIL < temp_mail_file
+    endif
+    \rm -f temp_mail_file
+    echo -n `date` "mail sent. "
+
+    goto $myreturn
+    echo "DEATH HORROR ERROR: execute past 'return'"
+# end of mail:								#
+#########################################################################
+
+#########################################################################
+# check_file								#
+# check if $CHECK_FILE exists, else fatal error				#
+check_file:
+    if ( ! $?return ) then
+	echo "DEATH HORROR ERROR: no return value set"
+	exit
+    endif
+    set myreturn = $return
+    unset return
+    
+    if ( ! -f $CHECK_FILE ) then
+	echo `date` "FATAL ERROR: $CHECK_PROG did not produce $CHECK_FILE"
+	echo "                                          Check file tpbconv.job for details."
+	exit
+    endif
+
+    goto $myreturn
+    echo "DEATH HORROR ERROR: execute past 'return'"
+# end of check_file:							#
+#########################################################################
+
+#last line

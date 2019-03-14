@@ -1,0 +1,10 @@
+FAD	9
+	1	 1	FN3	FC2	FC4
+	1	 1	FC6	FC5A	FC7
+	1	 1	FC9	FC8	FC9A
+	1	 2	FOB  	FCB  	FCA  
+	1	 2	FOG  	FCG  	FCB  
+	1	 2	FOD  	FCD  	FCG  
+	2	 3	AN6	AC6	AN1
+	1	 2	AO2*	AC2*	AC1*
+	1	 2	AO3*	AC3*	AC2*
